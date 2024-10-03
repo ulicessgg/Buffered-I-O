@@ -102,23 +102,18 @@ b_io_fd b_open (char * filename, int flags)
 			return -1;
 		}
 		
-		// create instance of fileInfo  using return value from GetFileInfo
-		fileInfo* currFile = GetFileInfo(filename);
+		// save the file info returned from GetFileInfo
+		fcbArray[fd].fi = GetFileInfo(filename);
 
 		// if GetFileInfo returns null print error and return
-		if(currFile == NULL)
+		if(fcbArray[fd].fi == NULL)
 		{
 			perror("File not found!");
 			return -1;
 		}
 
-		// save the file info of the current file
-		fcbArray[fd].fi = currFile;
 		// allocate buffer for respective file being opened
 		fcbArray[fd].buffer = malloc(B_CHUNK_SIZE);
-		// initialize the rest of the struct instance before returning fd
-		fcbArray[fd].spaceUsed = 0;
-		fcbArray[fd].position = 0;
 
 		return fd;
 	}
@@ -157,13 +152,22 @@ int b_read (b_io_fd fd, char * buffer, int count)
 		// start work here after finishing open and close
 
 	}
-	
-
 
 // b_close frees and allocated memory and places the file control block back 
 // into the unused pool of file control blocks.
 int b_close (b_io_fd fd)
 	{
 	//*** TODO ***//  Release any resources
+
+		// deallocate buffer for respective file
+		free(fcbArray[fd].buffer);
+
+		// reset fcbArray values
+		fcbArray[fd].fi = NULL;
+		fcbArray[fd].buffer = NULL;
+		fcbArray[fd].spaceUsed = 0;
+		fcbArray[fd].position = 0;
+
+		return 0;
 	}
 	
