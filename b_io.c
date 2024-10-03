@@ -1,5 +1,5 @@
 /**************************************************************
-* Class::  CSC-415-01 Spring 2024
+* Class::  CSC-415-01 Fall 2024
 * Name:: Ulices Gonzalez
 * Student ID:: 923328897
 * GitHub-Name:: ulicessgg
