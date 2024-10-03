@@ -1,11 +1,11 @@
 /**************************************************************
-* Class::  CSC-415-0# Spring 2024
-* Name::
-* Student ID::
-* GitHub-Name::
+* Class::  CSC-415-01 Spring 2024
+* Name:: Ulices Gonzalez
+* Student ID:: 923328897
+* GitHub-Name:: ulicessgg
 * Project:: Assignment 5 – Buffered I/O read
 *
-* File:: <name of this file>
+* File:: <b_io.c>
 *
 * Description::
 *
@@ -31,7 +31,11 @@ typedef struct b_fcb
 
 	// Add any other needed variables here to track the individual open file
 
-
+		// to keep track of the files create a local buffer to read to, a count
+		// for the space being used, and an integer to track the block position
+		char* buffer;
+		int spaceUsed;
+		int position;
 
 	} b_fcb;
 	
@@ -87,6 +91,36 @@ b_io_fd b_open (char * filename, int flags)
 	//				  But make sure every file has its own buffer
 
 	// This is where you are going to want to call GetFileInfo and b_getFCB
+
+		// create file descriptor using return value of b_getFCB
+		b_io_fd fd = b_getFCB();
+
+		// if b_getFCB returns -1 print error and return
+		if(fd == -1)
+		{
+			perror("All files in use!");
+			return -1;
+		}
+		
+		// create instance of fileInfo  using return value from GetFileInfo
+		fileInfo* currFile = GetFileInfo(filename);
+
+		// if GetFileInfo returns null print error and return
+		if(currFile == NULL)
+		{
+			perror("File not found!");
+			return -1;
+		}
+
+		// save the file info of the current file
+		fcbArray[fd].fi = currFile;
+		// allocate buffer for respective file being opened
+		fcbArray[fd].buffer = malloc(B_CHUNK_SIZE);
+		// initialize the rest of the struct instance before returning fd
+		fcbArray[fd].spaceUsed = 0;
+		fcbArray[fd].position = 0;
+
+		return fd;
 	}
 
 
@@ -118,7 +152,10 @@ int b_read (b_io_fd fd, char * buffer, int count)
 		}	
 
 	// Your Read code here - the only function you call to get data is LBAread.
-	// Track which byte in the buffer you are at, and which block in the file	
+	// Track which byte in the buffer you are at, and which block in the file
+
+		// start work here after finishing open and close
+
 	}
 	
 
