@@ -35,7 +35,6 @@ typedef struct b_fcb
 		// for the space being used, and an integer to track the block position
 		char* buffer;
 		int spaceUsed;
-		int position;
 
 	} b_fcb;
 	
@@ -98,7 +97,6 @@ b_io_fd b_open (char * filename, int flags)
 		// if b_getFCB returns -1 print error and return
 		if(fd == -1)
 		{
-			perror("All files in use!");
 			return -1;
 		}
 		
@@ -108,12 +106,17 @@ b_io_fd b_open (char * filename, int flags)
 		// if GetFileInfo returns null print error and return
 		if(fcbArray[fd].fi == NULL)
 		{
-			perror("File not found!");
 			return -1;
 		}
 
 		// allocate buffer for respective file being opened
 		fcbArray[fd].buffer = malloc(B_CHUNK_SIZE);
+		if(fcbArray[fd].buffer == NULL)
+		{
+			return -1;
+		}
+
+		fcbArray[fd].spaceUsed = 0;
 
 		return fd;
 	}
@@ -149,8 +152,54 @@ int b_read (b_io_fd fd, char * buffer, int count)
 	// Your Read code here - the only function you call to get data is LBAread.
 	// Track which byte in the buffer you are at, and which block in the file
 
-		// start work here after finishing open and close
+		// create count of bytes copied to be returned upon termination
+		int bytesCopied = 0;
 
+		// if the buffer still contains contents copy whats left to the user
+		if(fcbArray[fd].spaceUsed > 0)
+		{
+			memcpy(buffer, fcbArray[fd].buffer, fcbArray[fd].spaceUsed);
+			bytesCopied += fcbArray[fd].spaceUsed;
+			fcbArray[fd].fi->location += 1;
+			fcbArray[fd].spaceUsed = 0;
+
+			// if theres more to be copied call a new lba and copy to buffer
+			if(bytesCopied < count)
+			{
+				LBAread(fcbArray[fd].buffer, B_CHUNK_SIZE/512, fcbArray[fd].fi->location);
+				memcpy(buffer + bytesCopied, fcbArray[fd].buffer, count - bytesCopied);
+				bytesCopied += count - bytesCopied;
+				fcbArray[fd].buffer += count - bytesCopied;
+				fcbArray[fd].spaceUsed = count - bytesCopied;
+			}
+			// if the count has been reached return and stop reading
+			if(bytesCopied == count)
+			{
+				return bytesCopied;
+			}
+		}
+		// if the count exceeds a block then copy whole block to user and 
+		// handle excess for future read
+		if(count > B_CHUNK_SIZE)
+		{
+			LBAread(fcbArray[fd].buffer, B_CHUNK_SIZE/512, fcbArray[fd].fi->location);
+			memcpy(buffer, fcbArray[fd].buffer, B_CHUNK_SIZE);
+			fcbArray[fd].fi->location += 1;
+			bytesCopied += B_CHUNK_SIZE;
+
+		}
+		// if the buffer is currently empty or new file is being copied
+		if(fcbArray[fd].spaceUsed == 0)
+		{
+			// read then copy to user buffer until limit is reached
+			LBAread(fcbArray[fd].buffer, B_CHUNK_SIZE/512, fcbArray[fd].fi->location);
+			memcpy(buffer, fcbArray[fd].buffer, count);
+			bytesCopied += count;
+			fcbArray[fd].spaceUsed = B_CHUNK_SIZE - bytesCopied;
+			fcbArray[fd].buffer += count;
+		}
+
+		return bytesCopied;
 	}
 
 // b_close frees and allocated memory and places the file control block back 
@@ -166,8 +215,6 @@ int b_close (b_io_fd fd)
 		fcbArray[fd].fi = NULL;
 		fcbArray[fd].buffer = NULL;
 		fcbArray[fd].spaceUsed = 0;
-		fcbArray[fd].position = 0;
 
 		return 0;
 	}
-	
