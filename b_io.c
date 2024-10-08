@@ -34,7 +34,9 @@ typedef struct b_fcb
 		// to keep track of the files create a local buffer to read to, a count
 		// for the space being used, and an integer to track the block position
 		char* buffer;
-		int spaceUsed;
+		int bufferUsed;
+		int bytePosition;
+		int blockPosition;
 
 	} b_fcb;
 	
@@ -116,7 +118,9 @@ b_io_fd b_open (char * filename, int flags)
 			return -1;
 		}
 
-		fcbArray[fd].spaceUsed = 0;
+		fcbArray[fd].bufferUsed = 0;
+		fcbArray[fd].bytePosition = 0;
+		fcbArray[fd].blockPosition = 0;
 
 		return fd;
 	}
@@ -157,17 +161,18 @@ int b_read (b_io_fd fd, char * buffer, int count)
 		{
 			return 0;
 		}
+
 		// create count of bytes copied to be returned upon termination
 		int bytesCopied = 0;
+		int incomingBlocks = 0;
 
 		// if the buffer still contains contents copy whats left to the user
-		if(fcbArray[fd].spaceUsed > 0)
+		if(fcbArray[fd].bufferUsed > 0)
 		{
 			
 		}
-		// if the count exceeds a block then copy whole block to user and 
-		// handle excess for future read
-		if(count > B_CHUNK_SIZE)
+		// if the count exceeds a block then copy whole block to user
+		if(count >= B_CHUNK_SIZE)
 		{
 
 		}
@@ -192,7 +197,9 @@ int b_close (b_io_fd fd)
 		// reset fcbArray values
 		fcbArray[fd].fi = NULL;
 		fcbArray[fd].buffer = NULL;
-		fcbArray[fd].spaceUsed = 0;
+		fcbArray[fd].bufferUsed = 0;
+		fcbArray[fd].bytePosition = 0;
+		fcbArray[fd].blockPosition = 0;
 
 		return 0;
 	}
