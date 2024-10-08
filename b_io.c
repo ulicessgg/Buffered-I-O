@@ -211,7 +211,7 @@ int b_read (b_io_fd fd, char * buffer, int count)
 			// update bytesCopied before returning
 			bytesCopied += bytesToCopy;
 			// update the file position in bytes
-			fcbArray[fd].bytePosition = bytesCopied;
+			fcbArray[fd].bytePosition += bytesToCopy;
 			// update the file position in bytes
 			fcbArray[fd].buffer += bytesToCopy;
 			fcbArray[fd].bufferUsed += bytesToCopy;
