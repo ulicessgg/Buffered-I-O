@@ -162,7 +162,15 @@ int b_read (b_io_fd fd, char * buffer, int count)
 			return 0;
 		}
 
+		// if eof is about to be met resize count to ensure excess is truncated
+		if(fcbArray[fd].bytePosition + count > fcbArray[fd].fi->fileSize)
+		{
+			count = fcbArray[fd].fi->fileSize - fcbArray[fd].bytePosition;
+		}
+
 		// create count of bytes copied to be returned upon termination
+		// along with incoming bytes, blocks to be copied during read,
+		// and count of blocks read after calling LBAread
 		int bytesCopied = 0;
 		int bytesToCopy = count;
 		int blocksToCopy = 0;
@@ -171,41 +179,40 @@ int b_read (b_io_fd fd, char * buffer, int count)
 		// if the buffer still contains contents copy whats left to the user
 		if(fcbArray[fd].bufferUsed > 0)
 		{
-			// store total of excess bytes from previous read
+			// store count of excess bytes from previous read
 			int excess = fcbArray[fd].bufferUsed;
 			
 			// copy from current fcbarray to users buffer
 			memcpy(buffer + bytesCopied, fcbArray[fd].buffer, excess);
 
-			// update bytesCopied with total excess taken in
+			// update bytesCopied and bytesToCopy with total excess taken in
 			bytesCopied += excess;
+			bytesToCopy -= excess;
 			// update the file position in bytes
 			fcbArray[fd].bytePosition += excess;
 			// update the file position in bytes
-			fcbArray[fd].bufferUsed = 0;
+			fcbArray[fd].bufferUsed -= excess;
 		}
 		// if the count exceeds a block then copy whole block to user
 		if(count >= B_CHUNK_SIZE)
 		{
 			// calculate the size of incoming bytes
-			bytesToCopy -= bytesCopied;
-			// since count is less than 512 only 1 block is needed
+			bytesToCopy = count - bytesCopied;
+			// since count is more than 512 dividend is used for blocksToCopy
 			blocksToCopy = count / B_CHUNK_SIZE;
 
 			// read to current fcbarray buffer and return total blocks read
-			blocksCopied = LBAread(buffer, blocksToCopy, fcbArray[fd].fi->location + fcbArray[fd].blockPosition);
+			blocksCopied = LBAread(buffer + bytesCopied, blocksToCopy, fcbArray[fd].fi->location + fcbArray[fd].blockPosition);
 
 			//update block position for future use
 			fcbArray[fd].blockPosition += blocksCopied;
 			// update bytesCopied before returning
 			bytesCopied += (blocksCopied * B_CHUNK_SIZE);
 			// update the file position in bytes
-			fcbArray[fd].bytePosition += bytesToCopy;
-			// calculate the size of the next batch of incoming bytes
-			bytesToCopy -= bytesCopied;
+			fcbArray[fd].bytePosition += bytesCopied;
 		}
 		// if the buffer is currently empty or new file is being copied
-		if(bytesToCopy > 0)
+		if(count > 0)
 		{
 			// calculate the size of the next batch of incoming bytes
 			bytesToCopy = count - bytesCopied;
