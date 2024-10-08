@@ -164,7 +164,9 @@ int b_read (b_io_fd fd, char * buffer, int count)
 
 		// create count of bytes copied to be returned upon termination
 		int bytesCopied = 0;
-		int incomingBlocks = 0;
+		int bytesToCopy = 0;
+		int blocksToCopy = 0;
+		int blocksCopied = 0;
 
 		// if the buffer still contains contents copy whats left to the user
 		if(fcbArray[fd].bufferUsed > 0)
@@ -179,7 +181,23 @@ int b_read (b_io_fd fd, char * buffer, int count)
 		// if the buffer is currently empty or new file is being copied
 		if(count > 0)
 		{
-			
+			// calculate the size of the next batch of incoming bytes
+			bytesToCopy = count - bytesCopied;
+
+			// since count is less than 512 only 1 block is needed
+			blocksToCopy = 1;
+
+			// read to current fcbarray buffer and return total blocks read
+			blocksCopied = LBAread(fcbArray[fd].buffer, blocksToCopy, fcbArray[fd].fi->location);
+			// copy from current fcbarray to users buffer the remaining bytes
+			memcpy(buffer, fcbArray[fd].buffer, bytesToCopy);
+
+			// update bytesCopied before returning
+			bytesCopied += bytesToCopy;
+			// update the file position in bytes
+			fcbArray[fd].bytePosition = bytesCopied;
+			// clear the buffer count before next use
+			fcbArray[fd].bufferUsed = 0;
 		}
 
 		return bytesCopied;
