@@ -152,51 +152,29 @@ int b_read (b_io_fd fd, char * buffer, int count)
 	// Your Read code here - the only function you call to get data is LBAread.
 	// Track which byte in the buffer you are at, and which block in the file
 
+		// if no bytes are requested or a negative amount is, return
+		if(count <= 0)
+		{
+			return 0;
+		}
 		// create count of bytes copied to be returned upon termination
 		int bytesCopied = 0;
 
 		// if the buffer still contains contents copy whats left to the user
 		if(fcbArray[fd].spaceUsed > 0)
 		{
-			memcpy(buffer, fcbArray[fd].buffer, fcbArray[fd].spaceUsed);
-			bytesCopied += fcbArray[fd].spaceUsed;
-			fcbArray[fd].fi->location += 1;
-			fcbArray[fd].spaceUsed = 0;
-
-			// if theres more to be copied call a new lba and copy to buffer
-			if(bytesCopied < count)
-			{
-				LBAread(fcbArray[fd].buffer, B_CHUNK_SIZE/512, fcbArray[fd].fi->location);
-				memcpy(buffer + bytesCopied, fcbArray[fd].buffer, count - bytesCopied);
-				bytesCopied += count - bytesCopied;
-				fcbArray[fd].buffer += count - bytesCopied;
-				fcbArray[fd].spaceUsed = count - bytesCopied;
-			}
-			// if the count has been reached return and stop reading
-			if(bytesCopied == count)
-			{
-				return bytesCopied;
-			}
+			
 		}
 		// if the count exceeds a block then copy whole block to user and 
 		// handle excess for future read
 		if(count > B_CHUNK_SIZE)
 		{
-			LBAread(fcbArray[fd].buffer, B_CHUNK_SIZE/512, fcbArray[fd].fi->location);
-			memcpy(buffer, fcbArray[fd].buffer, B_CHUNK_SIZE);
-			fcbArray[fd].fi->location += 1;
-			bytesCopied += B_CHUNK_SIZE;
 
 		}
 		// if the buffer is currently empty or new file is being copied
-		if(fcbArray[fd].spaceUsed == 0)
+		if(count > 0)
 		{
-			// read then copy to user buffer until limit is reached
-			LBAread(fcbArray[fd].buffer, B_CHUNK_SIZE/512, fcbArray[fd].fi->location);
-			memcpy(buffer, fcbArray[fd].buffer, count);
-			bytesCopied += count;
-			fcbArray[fd].spaceUsed = B_CHUNK_SIZE - bytesCopied;
-			fcbArray[fd].buffer += count;
+			
 		}
 
 		return bytesCopied;
