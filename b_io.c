@@ -212,10 +212,9 @@ int b_read (b_io_fd fd, char * buffer, int count)
 			bytesCopied += bytesToCopy;
 			// update the file position in bytes
 			fcbArray[fd].bytePosition = bytesCopied;
-			// clear the buffer count before next use
-			fcbArray[fd].bufferUsed = 0;
-			// calculate the size of the next batch of incoming bytes
-			bytesToCopy -= bytesCopied;
+			// update the file position in bytes
+			fcbArray[fd].buffer += bytesToCopy;
+			fcbArray[fd].bufferUsed += bytesToCopy;
 		}
 
 		return bytesCopied;
