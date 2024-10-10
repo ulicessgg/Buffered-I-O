@@ -174,64 +174,80 @@ int b_read (b_io_fd fd, char * buffer, int count)
 		// and count of blocks read after calling LBAread
 		int bytesCopied = 0;
 		int blocksToCopy = 0;
+		int blocksCopied = 0;
 
 		// if the buffer still contains contents copy whats left to the user
 		if(fcbArray[fd].bufferUsed > 0)
 		{
-			// store count of excess bytes from previous read
-			int excess = fcbArray[fd].bufferUsed;
-			
-			// copy from current fcbarray to users buffer
-			memcpy(buffer + bytesCopied, fcbArray[fd].buffer, excess);
+			// create temporary count for incoming data from prior read
+			int tempCount = 0;
 
-			// update bytesCopied and count with total excess taken in
-			bytesCopied += excess;
-			count -= excess;
-			// update the file position in bytes
-			fcbArray[fd].bytePosition += excess;
-			// update the buffer position in bytes
-			fcbArray[fd].bufferUsed -= excess;
+			// if the count is smaller that what is available in the buffer
+			// set tempCount to the count prior to copying
+			if(count < (B_CHUNK_SIZE - fcbArray[fd].bufferUsed))
+			{
+				tempCount = count;
+			}
+			// if the count is larger than the space available set tempCount
+			// to the space that is available in the buffer prior to copying
+			else
+			{
+				tempCount = B_CHUNK_SIZE - fcbArray[fd].bufferUsed;
+			}
+			
+			// copy from the current fcb buffer to the users buffer the requested bytes
+			memcpy(buffer, fcbArray[fd].buffer + fcbArray[fd].bytePosition, tempCount);
+
+			// since no blocks were read only update the file position in bytes
+			fcbArray[fd].bytePosition += tempCount;
+			// update bytesCopied and count with total that has been copied
+			bytesCopied += tempCount;
+			count -= tempCount;
 		}
-		// if the count exceeds a block then copy whole block to user
+		// if the count exceeds a block then copy the whole block to user
 		if(count >= B_CHUNK_SIZE)
 		{
-			// calculate the size of incoming bytes
-			count -= bytesCopied;
-			// since count is more than 512 dividend is used for blocksToCopy
+			// since count is more than 512 bytes the dividend is used for blocksToCopy
 			blocksToCopy = count / B_CHUNK_SIZE;
+			
+			// read to fcb buffer and return blocks that have been read
+			blocksCopied = LBAread(buffer + bytesCopied, blocksToCopy, fcbArray[fd].fi->location + fcbArray[fd].blockPosition);
 
-			// calculate total blocks read prior to read
-			fcbArray[fd].blockPosition = fcbArray[fd].bytePosition / B_CHUNK_SIZE;
-			// read to current fcbarray buffer
-			LBAread(buffer + bytesCopied, blocksToCopy, fcbArray[fd].fi->location + fcbArray[fd].blockPosition);
+			// update block position in file before next read
+			fcbArray[fd].blockPosition += blocksCopied;
 
 			// update bytesCopied before returning
-			bytesCopied += (blocksToCopy * B_CHUNK_SIZE);
+			bytesCopied += (blocksCopied * B_CHUNK_SIZE);
 			// update the file position in bytes
 			fcbArray[fd].bytePosition += bytesCopied;
+			// reduce the count by the current total of bytes that have been copied
+			count -= bytesCopied;
 		}
-		// if the buffer is currently empty or new file is being copied
+		// if the buffer is currently empty or the requested count has not been
+		// met read one final time and copy to the users buffer
 		if(count > 0)
 		{
-			// calculate the size of the next batch of incoming bytes
-			count -= bytesCopied;
-			// since count is less than 512 only 1 block is needed
+			// since the count is less than 512 bytes, blocksToCopy is set to 1
 			blocksToCopy = 1;
 
-			// calculate total blocks read prior to read
+			// calculate the block position using bytes and block size before read
 			fcbArray[fd].blockPosition = fcbArray[fd].bytePosition / B_CHUNK_SIZE;
-			// read to current fcbarray buffer
-			LBAread(fcbArray[fd].buffer, blocksToCopy, fcbArray[fd].fi->location + fcbArray[fd].blockPosition);
-			// copy from current fcbarray to users buffer the remaining bytes
+			// set the block location in the file prior to read with temp variable
+			int tempLocation = fcbArray[fd].fi->location + fcbArray[fd].blockPosition;
+
+			// read to fcb buffer and return blocks that have been read
+			blocksCopied = LBAread(fcbArray[fd].buffer, blocksToCopy, tempLocation);
+			// copy from the current fcb buffer to the users buffer the requested bytes
 			memcpy(buffer + bytesCopied, fcbArray[fd].buffer, count);
+
+			// update block position in file before next read
+			fcbArray[fd].blockPosition += blocksCopied;
 
 			// update bytesCopied before returning
 			bytesCopied += count;
 			// update the file position in bytes
 			fcbArray[fd].bytePosition += count;
-			// update the file position in bytes
-			fcbArray[fd].buffer += count;
-			fcbArray[fd].bufferUsed += count;
+			// reduce the count to 0 as the requested of bytes has been fufilled
 			count -= count;
 		}
 
