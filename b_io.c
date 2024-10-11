@@ -7,12 +7,12 @@
 *
 * File:: <b_io.c>
 *
-* Description:: This file implmemetns the b_open, b_read, and
+* Description:: This file implements the b_open, b_read, and
 * b_close set of functions. When called b_open will retrieve
 * a file descriptor and prepare a member of the fcbArray at its
 * respective positon. b_read will read data to a buffer and
-* copy over to the users buffer the requested amount of bytes
-* and b_close will free the allocated buffer and reset other
+* copy to the users buffer the requested amount of bytes.
+* b_close will free the allocated buffer and reset other
 * values for future reads
 *
 **************************************************************/
