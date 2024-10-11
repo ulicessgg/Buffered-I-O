@@ -7,7 +7,13 @@
 *
 * File:: <b_io.c>
 *
-* Description::
+* Description:: This file implmemetns the b_open, b_read, and
+* b_close set of functions. When called b_open will retrieve
+* a file descriptor and prepare a member of the fcbArray at its
+* respective positon. b_read will read data to a buffer and
+* copy over to the users buffer the requested amount of bytes
+* and b_close will free the allocated buffer and reset other
+* values for future reads
 *
 **************************************************************/
 #include <stdio.h>
@@ -32,7 +38,8 @@ typedef struct b_fcb
 	// Add any other needed variables here to track the individual open file
 
 		// to keep track of the files create a local buffer to read to, a count
-		// for the space being used, and an integer to track the block position
+		// for the space being used, and integers to track the byte and block
+		// positions when reading to a users buffer
 		char* buffer;
 		int bufferUsed;
 		int bytePosition;
@@ -96,7 +103,7 @@ b_io_fd b_open (char * filename, int flags)
 		// create file descriptor using return value of b_getFCB
 		b_io_fd fd = b_getFCB();
 
-		// if b_getFCB returns -1 print error and return
+		// if b_getFCB returns -1 return a negative
 		if(fd == -1)
 		{
 			return -1;
@@ -105,7 +112,7 @@ b_io_fd b_open (char * filename, int flags)
 		// save the file info returned from GetFileInfo
 		fcbArray[fd].fi = GetFileInfo(filename);
 
-		// if GetFileInfo returns null print error and return
+		// if GetFileInfo returns null return a negative
 		if(fcbArray[fd].fi == NULL)
 		{
 			return -1;
@@ -113,12 +120,13 @@ b_io_fd b_open (char * filename, int flags)
 
 		// allocate buffer for respective file being opened
 		fcbArray[fd].buffer = malloc(B_CHUNK_SIZE);
+		// return a negative if the allocation fails
 		if(fcbArray[fd].buffer == NULL)
 		{
-			fcbArray[fd].fi = NULL;
 			return -1;
 		}
 
+		// clear the fcbArray members before read
 		fcbArray[fd].bufferUsed = 0;
 		fcbArray[fd].bytePosition = 0;
 		fcbArray[fd].blockPosition = 0;
@@ -157,7 +165,7 @@ int b_read (b_io_fd fd, char * buffer, int count)
 	// Your Read code here - the only function you call to get data is LBAread.
 	// Track which byte in the buffer you are at, and which block in the file
 
-		// if no bytes are requested or a negative amount is, return
+		// if no bytes are requested or a negative amount is, return 0
 		if(count <= 0)
 		{
 			return 0;
@@ -170,13 +178,13 @@ int b_read (b_io_fd fd, char * buffer, int count)
 		}
 
 		// create count of bytes copied to be returned upon termination
-		// along with incoming bytes, blocks to be copied during read,
-		// and count of blocks read after calling LBAread
+		// along with blocks to be copied during read, and count of 
+		// blocks read after calling LBAread
 		int bytesCopied = 0;
 		int blocksToCopy = 0;
 		int blocksCopied = 0;
 
-		// if the buffer still contains contents copy whats left to the user
+		// if the buffer still contains data copy whats left to the user
 		if(fcbArray[fd].bufferUsed > 0)
 		{
 			// create temporary count for incoming data from prior read
@@ -204,14 +212,17 @@ int b_read (b_io_fd fd, char * buffer, int count)
 			bytesCopied += tempCount;
 			count -= tempCount;
 		}
-		// if the count exceeds a block then copy the whole block to user
+		// if the count exceeds a B_CHUNK_SIZE then copy as many blocks as possible
 		if(count >= B_CHUNK_SIZE)
 		{
-			// since count is more than 512 bytes the dividend is used for blocksToCopy
+			// since count is more than 512 bytes the quotient is used for blocksToCopy
 			blocksToCopy = count / B_CHUNK_SIZE;
+
+			// set the block location in the file prior to read with temp variable
+			int tempLocation = fcbArray[fd].fi->location + fcbArray[fd].blockPosition;
 			
-			// read to fcb buffer and return blocks that have been read
-			blocksCopied = LBAread(buffer + bytesCopied, blocksToCopy, fcbArray[fd].fi->location + fcbArray[fd].blockPosition);
+			// read to user buffer and return blocks that have been read
+			blocksCopied = LBAread(buffer + bytesCopied, blocksToCopy, tempLocation);
 
 			// update block position in file before next read
 			fcbArray[fd].blockPosition += blocksCopied;
@@ -224,7 +235,7 @@ int b_read (b_io_fd fd, char * buffer, int count)
 			count -= bytesCopied;
 		}
 		// if the buffer is currently empty or the requested count has not been
-		// met read one final time and copy to the users buffer
+		// met read and copy to the users buffer
 		if(count > 0)
 		{
 			// since the count is less than 512 bytes, blocksToCopy is set to 1
@@ -263,7 +274,7 @@ int b_close (b_io_fd fd)
 		// deallocate buffer for respective file
 		free(fcbArray[fd].buffer);
 
-		// reset fcbArray values
+		// reset fcbArray values as they are no longer in use
 		fcbArray[fd].fi = NULL;
 		fcbArray[fd].buffer = NULL;
 		fcbArray[fd].bufferUsed = 0;
